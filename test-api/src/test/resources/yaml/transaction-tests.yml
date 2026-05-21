@@ -1,0 +1,447 @@
+suite: transaction-api
+
+tests:
+  # ─── CREATE ───────────────────────────────────────────────────────────────
+  - name: create_transfer_success
+    description: POST tạo giao dịch TRANSFER thành công
+    request:
+      method: POST
+      path: /api/transactions
+      headers:
+        Content-Type: application/json
+      body:
+        transactionCode: TXN-001
+        fromAccount: ACC-001
+        toAccount: ACC-002
+        amount: 1500000.00
+        currency: VND
+        type: TRANSFER
+        description: Chuyen tien noi bo
+    expected:
+      status: 201
+      headers:
+        Location: "regex:.*/api/transactions/\\d+"
+      jsonPath:
+        "$.transactionCode": TXN-001
+        "$.fromAccount": ACC-001
+        "$.toAccount": ACC-002
+        "$.amount": 1500000.00
+        "$.currency": VND
+        "$.type": TRANSFER
+        "$.status": PENDING
+        "$.description": Chuyen tien noi bo
+        "$.id": "$exists"
+        "$.createdAt": "$exists"
+        "$.updatedAt": "$exists"
+
+  - name: create_duplicate_code
+    description: Mã giao dịch trùng → 400
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-DUP
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+            description: Chuyen tien noi bo
+        expected:
+          status: 201
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-DUP
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 400
+          jsonPath:
+            "$.detail": "contains:already exists"
+
+  - name: create_transfer_missing_to_account
+    description: TRANSFER thiếu toAccount → 400
+    request:
+      method: POST
+      path: /api/transactions
+      headers:
+        Content-Type: application/json
+      body:
+        transactionCode: TXN-BAD
+        fromAccount: ACC-001
+        amount: 100.00
+        currency: VND
+        type: TRANSFER
+    expected:
+      status: 400
+      jsonPath:
+        "$.detail": "contains:toAccount"
+
+  - name: create_invalid_amount
+    description: amount <= 0 → 400
+    request:
+      method: POST
+      path: /api/transactions
+      headers:
+        Content-Type: application/json
+      body:
+        transactionCode: TXN-ZERO
+        fromAccount: ACC-001
+        toAccount: ACC-002
+        amount: 0
+        currency: VND
+        type: TRANSFER
+    expected:
+      status: 400
+      jsonPath:
+        "$.detail": "contains:amount"
+
+  # ─── READ ─────────────────────────────────────────────────────────────────
+  - name: get_by_id_success
+    description: GET chi tiết giao dịch
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-GET
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: GET
+          path: /api/transactions/${id}
+        expected:
+          status: 200
+          jsonPath:
+            "$.transactionCode": TXN-GET
+
+  - name: get_by_id_not_found
+    description: GET id không tồn tại → 404
+    request:
+      method: GET
+      path: /api/transactions/99999
+    expected:
+      status: 404
+      jsonPath:
+        "$.detail": "contains:not found"
+
+  - name: list_filter_by_status_and_type
+    description: GET lọc theo status và type
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-LIST-1
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-LIST-2
+            toAccount: ACC-999
+            amount: 500000
+            currency: VND
+            type: DEPOSIT
+        expected:
+          status: 201
+      - request:
+          method: GET
+          path: /api/transactions
+          queryParams:
+            status: PENDING
+            type: TRANSFER
+        expected:
+          status: 200
+          jsonPath:
+            "$.totalElements": 1
+            "$.content[0].transactionCode": TXN-LIST-1
+
+  # ─── UPDATE ───────────────────────────────────────────────────────────────
+  - name: update_pending_success
+    description: PUT cập nhật khi PENDING
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-UPD
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: PUT
+          path: /api/transactions/${id}
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-UPD-NEW
+            fromAccount: ACC-100
+            toAccount: ACC-200
+            amount: 2000000.00
+            currency: USD
+            type: TRANSFER
+            description: Updated
+        expected:
+          status: 200
+          jsonPath:
+            "$.transactionCode": TXN-UPD-NEW
+            "$.fromAccount": ACC-100
+            "$.amount": 2000000.00
+            "$.currency": USD
+
+  - name: update_completed_conflict
+    description: PUT giao dịch COMPLETED → 409
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-LOCK
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: PATCH
+          path: /api/transactions/${id}/status
+          headers:
+            Content-Type: application/json
+          body:
+            status: COMPLETED
+        expected:
+          status: 200
+      - request:
+          method: PUT
+          path: /api/transactions/${id}
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-LOCK-NEW
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 409
+          jsonPath:
+            "$.detail": "contains:PENDING"
+
+  # ─── STATUS ───────────────────────────────────────────────────────────────
+  - name: patch_status_pending_to_completed
+    description: PATCH PENDING → COMPLETED
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-STATUS
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: PATCH
+          path: /api/transactions/${id}/status
+          headers:
+            Content-Type: application/json
+          body:
+            status: COMPLETED
+        expected:
+          status: 200
+          jsonPath:
+            "$.status": COMPLETED
+
+  - name: patch_status_revert_to_pending
+    description: COMPLETED → PENDING không được → 400
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-REVERT
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: PATCH
+          path: /api/transactions/${id}/status
+          headers:
+            Content-Type: application/json
+          body:
+            status: COMPLETED
+        expected:
+          status: 200
+      - request:
+          method: PATCH
+          path: /api/transactions/${id}/status
+          headers:
+            Content-Type: application/json
+          body:
+            status: PENDING
+        expected:
+          status: 400
+          jsonPath:
+            "$.detail": "contains:PENDING"
+
+  - name: patch_status_from_terminal
+    description: COMPLETED → FAILED → 409
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-TERM
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: PATCH
+          path: /api/transactions/${id}/status
+          headers:
+            Content-Type: application/json
+          body:
+            status: COMPLETED
+        expected:
+          status: 200
+      - request:
+          method: PATCH
+          path: /api/transactions/${id}/status
+          headers:
+            Content-Type: application/json
+          body:
+            status: FAILED
+        expected:
+          status: 409
+          jsonPath:
+            "$.detail": "contains:terminal"
+
+  # ─── DELETE ───────────────────────────────────────────────────────────────
+  - name: delete_pending_success
+    description: DELETE PENDING → 204
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-DEL
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: DELETE
+          path: /api/transactions/${id}
+        expected:
+          status: 204
+
+  - name: delete_completed_conflict
+    description: DELETE COMPLETED → 409
+    steps:
+      - request:
+          method: POST
+          path: /api/transactions
+          headers:
+            Content-Type: application/json
+          body:
+            transactionCode: TXN-DEL-LOCK
+            fromAccount: ACC-001
+            toAccount: ACC-002
+            amount: 1500000.00
+            currency: VND
+            type: TRANSFER
+        expected:
+          status: 201
+        capture:
+          id: $.id
+      - request:
+          method: PATCH
+          path: /api/transactions/${id}/status
+          headers:
+            Content-Type: application/json
+          body:
+            status: COMPLETED
+        expected:
+          status: 200
+      - request:
+          method: DELETE
+          path: /api/transactions/${id}
+        expected:
+          status: 409
+          jsonPath:
+            "$.detail": "contains:PENDING"

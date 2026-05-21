@@ -1,0 +1,29 @@
+suite: transaction-api-mocks
+
+mocks:
+  - bean: transactionRepository
+    stubs:
+      - method: existsByTransactionCode
+        args:
+          - TXN-MOCK-EXISTS
+        return: true
+
+tests:
+  - name: mock_repository_duplicate
+    description: Service gọi repository mock — mã đã tồn tại
+    request:
+      method: POST
+      path: /api/transactions
+      headers:
+        Content-Type: application/json
+      body:
+        transactionCode: TXN-MOCK-EXISTS
+        fromAccount: ACC-001
+        toAccount: ACC-002
+        amount: 1000
+        currency: VND
+        type: TRANSFER
+    expected:
+      status: 400
+      jsonPath:
+        "$.detail": "contains:already exists"
