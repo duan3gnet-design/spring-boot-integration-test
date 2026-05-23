@@ -1,5 +1,7 @@
 package com.spring.test.yaml;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import com.spring.test.yaml.model.ExpectedResponseSpec;
@@ -23,6 +25,7 @@ import java.util.regex.Pattern;
  */
 public class YamlMockMvcTestRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(YamlMockMvcTestRunner.class);
     private final MockMvc mockMvc;
     private final JsonMapper jsonMapper;
 
@@ -61,7 +64,7 @@ public class YamlMockMvcTestRunner {
     private void assertResponse(MvcResult mvcResult, ExpectedResponseSpec expected) throws Exception {
         int actualStatus = mvcResult.getResponse().getStatus();
         if (actualStatus != expected.getStatus()) {
-            throw new AssertionError("Expected status " + expected.getStatus() + " but was " + actualStatus
+            throw new Exception("Expected status " + expected.getStatus() + " but was " + actualStatus
                     + ". Body: " + mvcResult.getResponse().getContentAsString());
         }
 
@@ -80,20 +83,20 @@ public class YamlMockMvcTestRunner {
         if (expected.getBody() != null) {
             JsonNode expectedNode = jsonMapper.valueToTree(expected.getBody());
             if (!root.equals(expectedNode)) {
-                throw new AssertionError("Response body mismatch.\nExpected: " + expectedNode
+                throw new Exception("Response body mismatch.\nExpected: " + expectedNode
                         + "\nActual: " + root);
             }
         }
     }
 
-    private void assertHeaderValue(String name, String expected, String actual) {
+    private void assertHeaderValue(String name, String expected, String actual) throws Exception {
         if (actual == null) {
-            throw new AssertionError("Header '" + name + "' not present. Expected: " + expected);
+            throw new Exception("Header '" + name + "' not present. Expected: " + expected);
         }
         if (expected.startsWith("regex:")) {
             String pattern = expected.substring("regex:".length());
             if (!Pattern.compile(pattern).matcher(actual).find()) {
-                throw new AssertionError("Header '" + name + "' expected to match regex '" + pattern
+                throw new Exception("Header '" + name + "' expected to match regex '" + pattern
                         + "' but was: " + actual);
             }
             return;
@@ -101,28 +104,28 @@ public class YamlMockMvcTestRunner {
         if (expected.startsWith("contains:")) {
             String fragment = expected.substring("contains:".length());
             if (!actual.contains(fragment)) {
-                throw new AssertionError("Header '" + name + "' expected to contain '" + fragment
+                throw new Exception("Header '" + name + "' expected to contain '" + fragment
                         + "' but was: " + actual);
             }
             return;
         }
         if (!actual.equals(expected)) {
-            throw new AssertionError("Header '" + name + "' expected '" + expected + "' but was: " + actual);
+            throw new Exception("Header '" + name + "' expected '" + expected + "' but was: " + actual);
         }
     }
 
-    private void assertJsonPathValue(JsonNode root, String path, Object expected) {
+    private void assertJsonPathValue(JsonNode root, String path, Object expected) throws Exception {
         if (expected instanceof String str) {
             switch (str) {
                 case "$exists" -> {
                     if (!nodeExists(root, path)) {
-                        throw new AssertionError("JSON path does not exist: " + path);
+                        throw new Exception("JSON path does not exist: " + path);
                     }
                 }
                 case "$notNull" -> {
                     JsonNode node = readJsonPath(root, path);
-                    if (node == null || node.isNull() || (node.isTextual() && node.asText().isBlank())) {
-                        throw new AssertionError("JSON path is null/empty: " + path);
+                    if (node == null || node.isNull() || (node.isString() && node.asString().isBlank())) {
+                        throw new Exception("JSON path is null/empty: " + path);
                     }
                 }
                 default -> {
@@ -131,14 +134,14 @@ public class YamlMockMvcTestRunner {
                         String pattern = str.substring("regex:".length());
                         String actual = nodeText(node, path);
                         if (!Pattern.compile(pattern).matcher(actual).matches()) {
-                            throw new AssertionError("JSON path " + path + " expected regex '" + pattern
+                            throw new Exception("JSON path " + path + " expected regex '" + pattern
                                     + "' but was: " + actual);
                         }
                     } else if (str.startsWith("contains:")) {
                         String fragment = str.substring("contains:".length());
                         String actual = nodeText(node, path);
                         if (!actual.contains(fragment)) {
-                            throw new AssertionError("JSON path " + path + " expected to contain '" + fragment
+                            throw new Exception("JSON path " + path + " expected to contain '" + fragment
                                     + "' but was: " + actual);
                         }
                     } else {
@@ -152,13 +155,13 @@ public class YamlMockMvcTestRunner {
         assertJsonValueEquals(path, node, expected);
     }
 
-    private void assertJsonValueEquals(String path, JsonNode node, Object expected) {
+    private void assertJsonValueEquals(String path, JsonNode node, Object expected) throws Exception {
         if (node == null || node.isMissingNode()) {
-            throw new AssertionError("JSON path not found: " + path);
+            throw new Exception("JSON path not found: " + path);
         }
         JsonNode expectedNode = jsonMapper.valueToTree(expected);
         if (!node.equals(expectedNode)) {
-            throw new AssertionError("JSON path " + path + " expected " + expectedNode + " but was " + node);
+            throw new Exception("JSON path " + path + " expected " + expectedNode + " but was " + node);
         }
     }
 
@@ -171,11 +174,11 @@ public class YamlMockMvcTestRunner {
         }
     }
 
-    private String nodeText(JsonNode node, String path) {
+    private String nodeText(JsonNode node, String path) throws Exception {
         if (node == null || node.isMissingNode() || node.isNull()) {
-            throw new AssertionError("JSON path not found: " + path);
+            throw new Exception("JSON path not found: " + path);
         }
-        return node.isTextual() ? node.asText() : node.toString();
+        return node.isString() ? node.asString() : node.toString();
     }
 
     private void captureVariables(Map<String, String> capture, Map<String, Object> variables, MvcResult mvcResult)
@@ -191,7 +194,7 @@ public class YamlMockMvcTestRunner {
                 throw new IllegalArgumentException(
                         "Capture failed: " + entry.getKey() + " from path " + entry.getValue());
             }
-            variables.put(entry.getKey(), node.isNumber() ? node.numberValue() : node.asText());
+            variables.put(entry.getKey(), node.isNumber() ? node.numberValue() : node.asString());
         }
     }
 
@@ -238,7 +241,7 @@ public class YamlMockMvcTestRunner {
         return resolved;
     }
 
-    private MockHttpServletRequestBuilder buildRequest(HttpRequestSpec request) throws Exception {
+    private MockHttpServletRequestBuilder buildRequest(HttpRequestSpec request) {
         HttpMethod method = HttpMethod.valueOf(request.getMethod().trim().toUpperCase());
         MockHttpServletRequestBuilder builder = switch (method.name()) {
             case "GET" -> MockMvcRequestBuilders.get(request.getPath());

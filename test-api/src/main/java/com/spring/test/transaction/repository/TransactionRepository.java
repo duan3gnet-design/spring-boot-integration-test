@@ -19,14 +19,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     boolean existsByTransactionCode(String transactionCode);
 
     @Query("""
-            SELECT t FROM Transaction t
-            WHERE (:status IS NULL OR t.status = :status)
-              AND (:type IS NULL OR t.type = :type)
-              AND (:fromAccount IS NULL OR t.fromAccount = :fromAccount)
-              AND (:toAccount IS NULL OR t.toAccount = :toAccount)
-              AND (:fromDate IS NULL OR t.createdAt >= :fromDate)
-              AND (:toDate IS NULL OR t.createdAt <= :toDate)
-            """)
+        SELECT t FROM Transaction t
+        WHERE (:status IS NULL OR t.status = :status)
+          AND (:type IS NULL OR t.type = :type)
+          AND (:fromAccount IS NULL OR t.fromAccount = :fromAccount)
+          AND (:toAccount IS NULL OR t.toAccount = :toAccount)
+          AND (COALESCE(:fromDate, NULL) IS NULL OR t.createdAt >= :fromDate)
+          AND (COALESCE(:toDate, NULL) IS NULL OR t.createdAt <= :toDate)
+        """)
     Page<Transaction> search(
             @Param("status") TransactionStatus status,
             @Param("type") TransactionType type,

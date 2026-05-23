@@ -340,9 +340,9 @@ tests:
           body:
             status: PENDING
         expected:
-          status: 400
+          status: 409
           jsonPath:
-            "$.detail": "contains:PENDING"
+            "$.detail": "contains:COMPLETED"
 
   - name: patch_status_from_terminal
     description: COMPLETED → FAILED → 409

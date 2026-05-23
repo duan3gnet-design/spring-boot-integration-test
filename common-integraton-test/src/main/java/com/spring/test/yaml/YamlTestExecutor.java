@@ -1,6 +1,5 @@
 package com.spring.test.yaml;
 
-import com.spring.test.yaml.model.MockSpec;
 import com.spring.test.yaml.model.TestCase;
 import com.spring.test.yaml.model.TestSuite;
 import org.slf4j.Logger;
@@ -81,7 +80,7 @@ public class YamlTestExecutor {
         try {
             new YamlMockMvcTestRunner(context.mockMvc(), context.jsonMapper()).run(testCase);
         } catch (Exception e) {
-            throw new AssertionError("YAML test failed: " + testKey, e);
+            throw new AssertionError("YAML test failed: " + testKey + ", " + e.getMessage(), e);
         } finally {
             mockConfigurer.resetMocks(testCase.getMocks());
             mockConfigurer.resetMocks(suite.getMocks());
