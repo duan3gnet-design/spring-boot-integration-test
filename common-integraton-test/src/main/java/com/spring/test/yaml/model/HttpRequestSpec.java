@@ -10,6 +10,12 @@ public class HttpRequestSpec {
     private Map<String, String> headers = new LinkedHashMap<>();
     private Map<String, String> queryParams = new LinkedHashMap<>();
     private Object body;
+    /**
+     * Đường dẫn tới file JSON chứa request body (classpath hoặc đường dẫn tương đối).
+     * Nếu được khai báo, nội dung file sẽ được load và gán vào {@code body} khi đọc YAML.
+     * Ví dụ: {@code bodyFile: requests/create-user.json}
+     */
+    private String bodyFile;
 
     public String getMethod() {
         return method;
@@ -49,5 +55,13 @@ public class HttpRequestSpec {
 
     public void setBody(Object body) {
         this.body = body;
+    }
+
+    public String getBodyFile() {
+        return bodyFile;
+    }
+
+    public void setBodyFile(String bodyFile) {
+        this.bodyFile = bodyFile;
     }
 }

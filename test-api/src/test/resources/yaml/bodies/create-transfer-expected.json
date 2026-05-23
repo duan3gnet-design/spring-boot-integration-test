@@ -1,0 +1,13 @@
+{
+  "id": "$exists",
+  "transactionCode": "TXN-001",
+  "fromAccount": "ACC-001",
+  "toAccount": "ACC-002",
+  "amount": 1500000.00,
+  "currency": "VND",
+  "type": "TRANSFER",
+  "status": "PENDING",
+  "description": "Chuyen tien noi bo",
+  "createdAt": "$exists",
+  "updatedAt": "$exists"
+}

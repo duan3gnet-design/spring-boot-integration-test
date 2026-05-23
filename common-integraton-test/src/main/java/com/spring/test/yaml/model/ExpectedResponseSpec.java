@@ -9,6 +9,12 @@ public class ExpectedResponseSpec {
     private Map<String, String> headers = new LinkedHashMap<>();
     private Map<String, Object> jsonPath = new LinkedHashMap<>();
     private Object body;
+    /**
+     * Đường dẫn tới file JSON chứa expected body (classpath hoặc đường dẫn tương đối).
+     * Nếu được khai báo, nội dung file sẽ được load và gán vào {@code body} khi đọc YAML.
+     * Ví dụ: {@code bodyFile: expected/user-response.json}
+     */
+    private String bodyFile;
 
     public int getStatus() {
         return status;
@@ -40,5 +46,13 @@ public class ExpectedResponseSpec {
 
     public void setBody(Object body) {
         this.body = body;
+    }
+
+    public String getBodyFile() {
+        return bodyFile;
+    }
+
+    public void setBodyFile(String bodyFile) {
+        this.bodyFile = bodyFile;
     }
 }

@@ -82,9 +82,77 @@ public class YamlMockMvcTestRunner {
 
         if (expected.getBody() != null) {
             JsonNode expectedNode = jsonMapper.valueToTree(expected.getBody());
-            if (!root.equals(expectedNode)) {
-                throw new Exception("Response body mismatch.\nExpected: " + expectedNode
-                        + "\nActual: " + root);
+            assertBodyPartialMatch(root, expectedNode);
+        }
+    }
+
+    /**
+     * So khớp body theo kiểu partial match:
+     * - Duyệt từng field trong {@code expected} (object JSON)
+     * - Field có giá trị {@code null} hoặc {@code "$exists"} → chỉ kiểm tra field tồn tại và không null
+     * - Field có giá trị {@code "$notNull"} → kiểm tra tồn tại, không null, không blank
+     * - Field có giá trị khác → so khớp chính xác với actual
+     * - Các field trong actual nhưng không có trong expected → bỏ qua (partial)
+     */
+    private void assertBodyPartialMatch(JsonNode actual, JsonNode expected) throws Exception {
+        if (expected.isObject()) {
+            for (var entry : expected.properties()) {
+                String fieldName = entry.getKey();
+                JsonNode expectedVal = entry.getValue();
+                JsonNode actualVal = actual.get(fieldName);
+
+                if (expectedVal.isNull()) {
+                    // null trong expected → chỉ yêu cầu field tồn tại
+                    if (actualVal == null || actualVal.isMissingNode()) {
+                        throw new Exception("Body field '" + fieldName + "' not present in response");
+                    }
+                } else if (expectedVal.isString()) {
+                    String text = expectedVal.asString();
+                    if (text.equals("$exists")) {
+                        if (actualVal == null || actualVal.isMissingNode() || actualVal.isNull()) {
+                            throw new Exception("Body field '" + fieldName + "' expected to exist but was absent or null");
+                        }
+                    } else if (text.equals("$notNull")) {
+                        if (actualVal == null || actualVal.isMissingNode() || actualVal.isNull()
+                                || (actualVal.isString() && actualVal.asString().isBlank())) {
+                            throw new Exception("Body field '" + fieldName + "' expected to be non-null/non-blank");
+                        }
+                    } else if (text.startsWith("regex:")) {
+                        String pattern = text.substring("regex:".length());
+                        String actualText = actualVal != null && actualVal.isString()
+                                ? actualVal.asString() : (actualVal != null ? actualVal.toString() : "");
+                        if (!Pattern.compile(pattern).matcher(actualText).matches()) {
+                            throw new Exception("Body field '" + fieldName + "' expected regex '" + pattern
+                                    + "' but was: " + actualText);
+                        }
+                    } else if (text.startsWith("contains:")) {
+                        String fragment = text.substring("contains:".length());
+                        String actualText = actualVal != null && actualVal.isString()
+                                ? actualVal.asString() : (actualVal != null ? actualVal.toString() : "");
+                        if (!actualText.contains(fragment)) {
+                            throw new Exception("Body field '" + fieldName + "' expected to contain '" + fragment
+                                    + "' but was: " + actualText);
+                        }
+                    } else {
+                        if (!expectedVal.equals(actualVal)) {
+                            throw new Exception("Body field '" + fieldName + "' expected "
+                                    + expectedVal + " but was " + actualVal);
+                        }
+                    }
+                } else if (expectedVal.isObject() && actualVal != null && actualVal.isObject()) {
+                    // Đệ quy cho nested object
+                    assertBodyPartialMatch(actualVal, expectedVal);
+                } else {
+                    if (!expectedVal.equals(actualVal)) {
+                        throw new Exception("Body field '" + fieldName + "' expected "
+                                + expectedVal + " but was " + actualVal);
+                    }
+                }
+            }
+        } else {
+            // Non-object (array, primitive) → so khớp chính xác
+            if (!actual.equals(expected)) {
+                throw new Exception("Response body mismatch.\nExpected: " + expected + "\nActual: " + actual);
             }
         }
     }

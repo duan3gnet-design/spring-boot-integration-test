@@ -9,30 +9,12 @@ tests:
       path: /api/transactions
       headers:
         Content-Type: application/json
-      body:
-        transactionCode: TXN-001
-        fromAccount: ACC-001
-        toAccount: ACC-002
-        amount: 1500000.00
-        currency: VND
-        type: TRANSFER
-        description: Chuyen tien noi bo
+      bodyFile: bodies/create-transfer-request.json
     expected:
       status: 201
       headers:
         Location: "regex:.*/api/transactions/\\d+"
-      jsonPath:
-        "$.transactionCode": TXN-001
-        "$.fromAccount": ACC-001
-        "$.toAccount": ACC-002
-        "$.amount": 1500000.00
-        "$.currency": VND
-        "$.type": TRANSFER
-        "$.status": PENDING
-        "$.description": Chuyen tien noi bo
-        "$.id": "$exists"
-        "$.createdAt": "$exists"
-        "$.updatedAt": "$exists"
+      bodyFile: bodies/create-transfer-expected.json
 
   - name: create_duplicate_code
     description: Mã giao dịch trùng → 400

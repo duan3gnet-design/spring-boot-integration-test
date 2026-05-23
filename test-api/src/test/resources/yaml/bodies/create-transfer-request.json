@@ -1,0 +1,9 @@
+{
+  "transactionCode": "TXN-001",
+  "fromAccount": "ACC-001",
+  "toAccount": "ACC-002",
+  "amount": 1500000.00,
+  "currency": "VND",
+  "type": "TRANSFER",
+  "description": "Chuyen tien noi bo"
+}
