@@ -9,6 +9,7 @@ public class TestCase {
     private String description;
     private boolean enabled = true;
     private List<MockSpec> mocks = new ArrayList<>();
+    private List<WireMockSpec> wireMocks = new ArrayList<>();
     private HttpRequestSpec request = new HttpRequestSpec();
     private ExpectedResponseSpec expected = new ExpectedResponseSpec();
     /** Nhiều bước HTTP tuần tự trong một test case. */
@@ -44,6 +45,14 @@ public class TestCase {
 
     public void setMocks(List<MockSpec> mocks) {
         this.mocks = mocks != null ? mocks : new ArrayList<>();
+    }
+
+    public List<WireMockSpec> getWireMocks() {
+        return wireMocks;
+    }
+
+    public void setWireMocks(List<WireMockSpec> wireMocks) {
+        this.wireMocks = wireMocks != null ? wireMocks : new ArrayList<>();
     }
 
     public HttpRequestSpec getRequest() {

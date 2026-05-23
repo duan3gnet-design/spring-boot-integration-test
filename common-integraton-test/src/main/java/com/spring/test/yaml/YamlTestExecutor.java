@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Điều phối đọc YAML, apply mock, chạy HTTP test cases.
+ * Điều phối đọc YAML, apply mock (Mockito + WireMock), chạy HTTP test cases.
  */
 public class YamlTestExecutor {
 
@@ -37,7 +37,11 @@ public class YamlTestExecutor {
 
         YamlMockConfigurer mockConfigurer = new YamlMockConfigurer(
                 context.applicationContext(), context.jsonMapper());
+        YamlWireMockConfigurer wireMockConfigurer = new YamlWireMockConfigurer(
+                context.wireMockRegistry(), context.jsonMapper());
+
         mockConfigurer.applyMocks(suite.getMocks());
+        wireMockConfigurer.applyStubs(suite.getWireMocks());
 
         YamlMockMvcTestRunner runner = new YamlMockMvcTestRunner(context.mockMvc(), context.jsonMapper());
         List<String> errors = new ArrayList<>();
@@ -48,6 +52,7 @@ public class YamlTestExecutor {
             }
             try {
                 mockConfigurer.applyMocks(testCase.getMocks());
+                wireMockConfigurer.applyStubs(testCase.getWireMocks());
                 runner.run(testCase);
                 log.debug("PASSED: {}", testCase.displayName());
             } catch (AssertionError | Exception e) {
@@ -55,10 +60,12 @@ public class YamlTestExecutor {
                 log.error("FAILED: {} — {}", testCase.displayName(), e.getMessage());
             } finally {
                 mockConfigurer.resetMocks(testCase.getMocks());
+                wireMockConfigurer.resetStubs(testCase.getWireMocks());
             }
         }
 
         mockConfigurer.resetMocks(suite.getMocks());
+        wireMockConfigurer.resetStubs(suite.getWireMocks());
 
         if (!errors.isEmpty()) {
             throw new AssertionError("YAML test failures:\n- " + String.join("\n- ", errors));
@@ -74,15 +81,22 @@ public class YamlTestExecutor {
 
         YamlMockConfigurer mockConfigurer = new YamlMockConfigurer(
                 context.applicationContext(), context.jsonMapper());
+        YamlWireMockConfigurer wireMockConfigurer = new YamlWireMockConfigurer(
+                context.wireMockRegistry(), context.jsonMapper());
+
         mockConfigurer.applyMocks(suite.getMocks());
+        wireMockConfigurer.applyStubs(suite.getWireMocks());
         mockConfigurer.applyMocks(testCase.getMocks());
+        wireMockConfigurer.applyStubs(testCase.getWireMocks());
 
         try {
             new YamlMockMvcTestRunner(context.mockMvc(), context.jsonMapper()).run(testCase);
         } catch (Exception e) {
             throw new AssertionError("YAML test failed: " + testKey + ", " + e.getMessage(), e);
         } finally {
+            wireMockConfigurer.resetStubs(testCase.getWireMocks());
             mockConfigurer.resetMocks(testCase.getMocks());
+            wireMockConfigurer.resetStubs(suite.getWireMocks());
             mockConfigurer.resetMocks(suite.getMocks());
         }
     }

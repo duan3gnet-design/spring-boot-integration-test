@@ -59,8 +59,8 @@ API lắng nghe tại `http://localhost:8090`.
 
 ### Ví dụ tạo giao dịch chuyển khoản
 
-```json
 POST /api/transactions
+```json
 {
   "transactionCode": "TXN-20260521-001",
   "fromAccount": "ACC-001",
@@ -74,8 +74,8 @@ POST /api/transactions
 
 ### Ví dụ cập nhật trạng thái
 
-```json
 PATCH /api/transactions/1/status
+```json
 {
   "status": "COMPLETED"
 }

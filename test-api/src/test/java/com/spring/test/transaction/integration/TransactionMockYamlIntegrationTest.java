@@ -14,7 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 /**
  * Mock bean từ YAML — mỗi case một dòng trên report.
  *
- * @see src/test/resources/yaml/transaction-mock-tests.yml
+ * @see "src/test/resources/yaml/transaction-mock-tests.yml"
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
