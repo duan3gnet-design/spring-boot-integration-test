@@ -1,5 +1,6 @@
 package com.spring.test.yaml;
 
+import com.spring.test.yaml.model.DbVerifySpec;
 import com.spring.test.yaml.model.TestCase;
 import com.spring.test.yaml.model.TestSuite;
 import org.slf4j.Logger;
@@ -9,7 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Điều phối đọc YAML, apply mock (Mockito + WireMock), chạy HTTP test cases.
+ * Điều phối đọc YAML, apply mock (Mockito + WireMock), chạy HTTP test cases,
+ * và verify database sau mỗi test case.
  */
 public class YamlTestExecutor {
 
@@ -27,6 +29,8 @@ public class YamlTestExecutor {
         this.reader = reader;
     }
 
+    // ── Suite ─────────────────────────────────────────────────────────────
+
     public TestSuite loadSuite(String classpathYaml) {
         return reader.loadClasspath(classpathYaml);
     }
@@ -39,6 +43,7 @@ public class YamlTestExecutor {
                 context.applicationContext(), context.jsonMapper());
         YamlWireMockConfigurer wireMockConfigurer = new YamlWireMockConfigurer(
                 context.wireMockRegistry(), context.jsonMapper());
+        YamlDbVerifier dbVerifier = buildDbVerifier();
 
         mockConfigurer.applyMocks(suite.getMocks());
         wireMockConfigurer.applyStubs(suite.getWireMocks());
@@ -53,7 +58,12 @@ public class YamlTestExecutor {
             try {
                 mockConfigurer.applyMocks(testCase.getMocks());
                 wireMockConfigurer.applyStubs(testCase.getWireMocks());
+
                 runner.run(testCase);
+
+                // DB verify sau khi HTTP request thành công
+                verifyDb(dbVerifier, testCase.getDbVerify(), testCase.displayName(), classpathYaml);
+
                 log.debug("PASSED: {}", testCase.displayName());
             } catch (AssertionError | Exception e) {
                 errors.add(testCase.displayName() + ": " + e.getMessage());
@@ -64,6 +74,15 @@ public class YamlTestExecutor {
             }
         }
 
+        // Suite-level DB verify (chạy sau tất cả test cases)
+        if (!suite.getDbVerify().isEmpty()) {
+            try {
+                verifyDb(dbVerifier, suite.getDbVerify(), suite.getSuite() + " [suite]", classpathYaml);
+            } catch (AssertionError | Exception e) {
+                errors.add("[suite-level dbVerify]: " + e.getMessage());
+            }
+        }
+
         mockConfigurer.resetMocks(suite.getMocks());
         wireMockConfigurer.resetStubs(suite.getWireMocks());
 
@@ -71,6 +90,8 @@ public class YamlTestExecutor {
             throw new AssertionError("YAML test failures:\n- " + String.join("\n- ", errors));
         }
     }
+
+    // ── Single case ───────────────────────────────────────────────────────
 
     public void runCase(String classpathYaml, String testKey) {
         TestSuite suite = loadSuite(classpathYaml);
@@ -83,6 +104,7 @@ public class YamlTestExecutor {
                 context.applicationContext(), context.jsonMapper());
         YamlWireMockConfigurer wireMockConfigurer = new YamlWireMockConfigurer(
                 context.wireMockRegistry(), context.jsonMapper());
+        YamlDbVerifier dbVerifier = buildDbVerifier();
 
         mockConfigurer.applyMocks(suite.getMocks());
         wireMockConfigurer.applyStubs(suite.getWireMocks());
@@ -91,6 +113,7 @@ public class YamlTestExecutor {
 
         try {
             new YamlMockMvcTestRunner(context.mockMvc(), context.jsonMapper()).run(testCase);
+            verifyDb(dbVerifier, testCase.getDbVerify(), testCase.displayName(), classpathYaml);
         } catch (Exception e) {
             throw new AssertionError("YAML test failed: " + testKey + ", " + e.getMessage(), e);
         } finally {
@@ -99,5 +122,27 @@ public class YamlTestExecutor {
             wireMockConfigurer.resetStubs(suite.getWireMocks());
             mockConfigurer.resetMocks(suite.getMocks());
         }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    private YamlDbVerifier buildDbVerifier() {
+        if (context.dataSource() != null) {
+            return new YamlDbVerifier(context.dataSource(), context.jsonMapper());
+        }
+        return null;
+    }
+
+    private void verifyDb(YamlDbVerifier dbVerifier, List<DbVerifySpec> specs,
+                          String testName, String classpathYaml) throws Exception {
+        if (specs == null || specs.isEmpty()) {
+            return;
+        }
+        if (dbVerifier == null) {
+            throw new IllegalStateException(
+                    "Test '" + testName + "' declares dbVerify but YamlTestContext.dataSource() returns null. "
+                    + "Override dataSource() in your test class.");
+        }
+        dbVerifier.verify(specs, testName, classpathYaml);
     }
 }

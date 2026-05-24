@@ -1,0 +1,12 @@
+[
+  {
+    "transaction_code": "TXN-001",
+    "from_account": "ACC-001",
+    "to_account": "ACC-002",
+    "amount": 1500000.00,
+    "currency": "VND",
+    "type": "TRANSFER",
+    "status": "PENDING",
+    "description": "Chuyen tien noi bo"
+  }
+]

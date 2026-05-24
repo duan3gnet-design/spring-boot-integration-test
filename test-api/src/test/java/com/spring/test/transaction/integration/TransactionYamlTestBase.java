@@ -10,6 +10,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
+import javax.sql.DataSource;
+
 /**
  * Base class cho YAML-driven integration tests của test-api.
  */
@@ -20,6 +22,7 @@ public abstract class TransactionYamlTestBase extends AbstractIntegrationTest
     @Autowired protected JsonMapper jsonMapper;
     @Autowired protected ApplicationContext applicationContext;
     @Autowired protected TransactionRepository transactionRepository;
+    @Autowired protected DataSource dataSource;
 
     @BeforeEach
     protected void cleanDatabase() {
@@ -39,5 +42,10 @@ public abstract class TransactionYamlTestBase extends AbstractIntegrationTest
     @Override
     public ApplicationContext applicationContext() {
         return applicationContext;
+    }
+
+    @Override
+    public DataSource dataSource() {
+        return dataSource;
     }
 }

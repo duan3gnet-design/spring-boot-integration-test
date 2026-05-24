@@ -14,6 +14,7 @@ public class TestSuite {
     private SuiteSetup setup = new SuiteSetup();
     private List<MockSpec> mocks = new ArrayList<>();
     private List<WireMockSpec> wireMocks = new ArrayList<>();
+    private List<DbVerifySpec> dbVerify = new ArrayList<>();
     private List<TestCase> tests = new ArrayList<>();
 
     public String getSuite() {
@@ -46,6 +47,14 @@ public class TestSuite {
 
     public void setWireMocks(List<WireMockSpec> wireMocks) {
         this.wireMocks = wireMocks != null ? wireMocks : new ArrayList<>();
+    }
+
+    public List<DbVerifySpec> getDbVerify() {
+        return dbVerify;
+    }
+
+    public void setDbVerify(List<DbVerifySpec> dbVerify) {
+        this.dbVerify = dbVerify != null ? dbVerify : new ArrayList<>();
     }
 
     public List<TestCase> getTests() {

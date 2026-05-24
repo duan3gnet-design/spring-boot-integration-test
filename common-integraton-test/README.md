@@ -284,3 +284,112 @@ Nếu chỉ có một server, bỏ qua `name`:
 > - `BeforeAll` — start tất cả server
 > - `BeforeEach` — reset tất cả mapping (stub sạch trước mỗi test)
 > - `AfterAll` — stop tất cả server
+
+---
+
+## DB Verify
+
+Verify dữ liệu trong database sau khi chạy HTTP request — dùng JDBC trực tiếp, không phụ thuộc ORM.
+
+### Định dạng YAML
+
+```yaml
+tests:
+  - name: create_transfer_success
+    request:
+      method: POST
+      path: /api/transactions
+      bodyFile: bodies/create-transfer-request.json
+    expected:
+      status: 201
+    dbVerify:
+      # Verify inline
+      - table: transactions
+        where:
+          transaction_code: TXN-001
+        expectedRows: 1          # kiểm tra số row
+        expected:                # kiểm tra data (partial match)
+          - status: PENDING
+            amount: 1500000.00
+            from_account: ACC-001
+            to_account: ACC-002
+        ignoreFields: [id, created_at, updated_at]
+        orderBy: [created_at DESC]
+
+      # Verify từ file JSON
+      - table: accounts
+        where:
+          account_number: ACC-001
+        expectedFile: db/account-after-transfer.json
+        ignoreFields: [id, updated_at]
+
+      # Chỉ kiểm tra số row
+      - table: audit_logs
+        where:
+          action: TRANSFER
+        expectedRows: 1
+```
+
+### Format file JSON (`expectedFile`)
+
+JSON array of objects — mỗi object là một row:
+
+```json
+[
+  {
+    "status": "PENDING",
+    "amount": 1500000.00,
+    "from_account": "ACC-001",
+    "to_account": "ACC-002",
+    "description": "$notNull"
+  }
+]
+```
+
+### Placeholder trong expected data
+
+| Giá trị | Ý nghĩa |
+|---------|--------|
+| `$exists` | Column tồn tại và không null |
+| `$notNull` | Tồn tại, không null, không blank |
+| `$null` | Phải là null |
+| `null` (YAML null) | Chỉ kiểm tra column tồn tại |
+| `regex:...` | Khớp regex |
+| `contains:...` | Chứa chuỗi |
+| `gt:...` | Lớn hơn (numeric) |
+| `lt:...` | Nhỏ hơn (numeric) |
+
+### Cách dùng trong test class
+
+Override `dataSource()` trong `YamlTestContext`:
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class TransactionYamlTest extends AbstractIntegrationTest
+        implements YamlTestContext, YamlIntegrationTestSupport {
+
+    @Autowired MockMvc mockMvc;
+    @Autowired JsonMapper jsonMapper;
+    @Autowired ApplicationContext applicationContext;
+    @Autowired DataSource dataSource;     // inject từ Spring
+
+    @Override
+    public DataSource dataSource() {
+        return dataSource;                // cung cấp cho YamlTestExecutor
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @YamlTestSource("yaml/transaction-tests.yml")
+    void runYamlCase(String testName, String description) {
+        runYamlTest(testName);
+    }
+}
+```
+
+> **Lưu ý:**
+> - Tên column trong `expected`/`expectedFile` là **lowercase** — verifier normalize tự động từ ResultSetMetaData.
+> - `dbVerify` ở cấp test case chạy sau HTTP request của case đó.
+> - `dbVerify` ở cấp suite chạy sau khi tất cả test cases hoàn thành.
+> - Nếu khai báo `dbVerify` mà không override `dataSource()` → throw rõ ràng thay vì NPE.

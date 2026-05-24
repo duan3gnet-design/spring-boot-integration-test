@@ -15,6 +15,13 @@ tests:
       headers:
         Location: "regex:.*/api/transactions/\\d+"
       bodyFile: bodies/create-transfer-expected.json
+    dbVerify:
+      - table: transactions
+        where:
+          transaction_code: TXN-001
+        expectedRows: 1
+        expectedFile: yaml/bodies/db-create-transfer-expected.json
+        ignoreFields: [id, created_at, updated_at]
 
   - name: create_duplicate_code
     description: Mã giao dịch trùng → 400
